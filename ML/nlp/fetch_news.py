@@ -31,8 +31,6 @@ def fetch_articles_polygon(ticker, start_date, end_date):
         url = next_url  # This will be None when there are no further pages
 
     # Print total count of articles fetched
-    print("Total number of articles fetched:", len(all_articles))
-    print(all_articles[2])
     
     return all_articles
 

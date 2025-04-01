@@ -167,4 +167,35 @@ def xgboost_inference_df_from_csv(
     
     return df_predictions
 
+def xgboost_inference_df_from_df(df, model_path, feature_subset=None):
+    model = load(model_path)
+    df = df.copy()
+    
+    # Ensure 'Date' is present and properly formatted
+    if 'Date' not in df.columns:
+        df['Date'] = pd.to_datetime(df.index).date
+    
+    df = calculate_technical_indicators(df)
+    print("Columns after calculating indicators:", df.columns.tolist())
+    
+    df['Price_Change'] = df['Close'].diff()
+    df['Target'] = (df['Price_Change'] > 0).astype(int)
+    
+    # Instead of dropping all NaNs, drop only rows missing critical features
+    critical_features = feature_subset + ['Price_Change', 'Target'] if feature_subset else ['Price_Change', 'Target']
+    df = df.dropna(subset=critical_features)
+    
+    if df.empty:
+        raise ValueError("DataFrame is empty after dropping NaN values. Check your technical indicator calculations and input data.")
+    
+    X = df[feature_subset] if feature_subset else df.drop(columns=['Price_Change', 'Target'])
+    y_pred = model.predict(X)
+    y_pred_proba = model.predict_proba(X)[:, 1]
+
+    return pd.DataFrame({
+        'Date': df['Date'],
+        'XGB_Pred': y_pred,
+        'XGB_Prob_Up': y_pred_proba
+    })
+
 
