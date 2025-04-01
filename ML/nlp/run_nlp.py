@@ -5,6 +5,7 @@ import numpy as np
 
 from fetch_news import fetch_articles_polygon, extract_text
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import openai
 
 # Load FinBERT model & tokenizer once at import time
 # (so you don't re-download or re-load for every function call)
@@ -155,7 +156,8 @@ def generate_next_day_rolling_sentiments(ticker, start_date, end_date, window=5)
         title = article.get('title', '')
         description = article.get('description', '')
         text = f"{title} {description}"
-        sentiment_data = analyze_text_finbert(text)
+        #sentiment_data = analyze_text_finbert(text)
+        sentiment_data = analyze_text_openai(text, ticker, pub_date)
         score = sentiment_data.get('sentiment_score', 0)
         
         records.append({
@@ -277,3 +279,38 @@ def generate_next_day_weighted_rolling_sentiments(ticker, start_date, end_date, 
     result = merged.dropna(subset=['next_day_sentiment']).reset_index(drop=True)
     
     return result[['Date', 'next_day_sentiment']]
+
+def analyze_text_openai(text, ticker, date):
+    """
+    Uses OpenAI's GPT to return a sentiment score based on article text.
+    
+    Returns a dictionary like:
+        { 'sentiment_score': float }
+    """
+    prompt = f"""
+You're a financial analyst. Given the following news headline and summary for {ticker}, published on {date}, 
+rate the overall sentiment toward {ticker}'s stock price impact for the *next trading day*.
+
+Output a single float between -1 and 1, where:
+- -1 = very negative
+-  0 = neutral
+- +1 = very positive
+
+News:
+{text}
+
+Your answer (just the number):
+"""
+
+    try:
+        response = openai.ChatCompletion(
+            model="gpt-4",  # Or gpt-3.5-turbo if preferred
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2
+        )
+        content = response['choices'][0]['message']['content'].strip()
+        sentiment_score = float(content)
+        return {'sentiment_score': sentiment_score}
+    except Exception as e:
+        print(f"Error analyzing text: {e}")
+        return {'sentiment_score': 0.0}  # fallback
