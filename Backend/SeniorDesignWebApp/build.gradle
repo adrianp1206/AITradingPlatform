@@ -1,0 +1,109 @@
+plugins {
+	id 'java'
+	id 'org.jetbrains.kotlin.jvm' version '1.9.0'
+	id 'com.adarshr.test-logger' version '4.0.0'
+	id 'pmd'
+	id "com.diffplug.spotless" version "7.0.0.BETA1"
+}
+
+subprojects {
+	apply plugin: 'java'
+	apply plugin: 'pmd'
+	apply plugin: 'com.diffplug.spotless'
+
+	dependencies {
+		testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+		testImplementation 'org.mockito:mockito-core:5.12.0'
+		testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+		implementation 'com.google.guava:guava:33.2.1-jre'
+		pmd 'net.sourceforge.pmd:pmd-ant:7.0.0'
+		pmd 'net.sourceforge.pmd:pmd-java:7.0.0'
+		implementation 'org.tinylog:tinylog-api:2.6.2'
+		implementation 'org.tinylog:tinylog-impl:2.6.2'
+		implementation 'org.java-websocket:Java-WebSocket:1.5.6'
+		implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+	}
+
+	pmd {
+		consoleOutput = true
+		toolVersion = "7.0.0"
+
+		pmdMain {
+			rulesMinimumPriority = 4
+			ruleSets = [
+					"category/java/design.xml/AvoidDeeplyNestedIfStmts",
+					"category/java/design.xml/CollapsibleIfStatements",
+					"category/java/design.xml/CognitiveComplexity",
+					"category/java/design.xml/CyclomaticComplexity",
+					"category/java/bestpractices.xml/UnusedLocalVariable",
+					"category/java/codestyle.xml/ShortVariable",
+					"category/java/codestyle.xml/UseDiamondOperator",
+					"category/java/errorprone.xml/BrokenNullCheck",
+					"category/java/errorprone.xml/CloseResource",
+					"category/java/errorprone.xml/CompareObjectsWithEquals",
+					"category/java/errorprone.xml/ReturnEmptyCollectionRatherThanNull",
+					"category/java/performance.xml/AvoidArrayLoops"
+			]
+			ruleSetFiles(files("$rootDir/pmdruleset.xml"))
+		}
+
+		pmdTest {
+			rulesMinimumPriority = 1
+			ruleSets = [
+					"category/java/performance.xml/AvoidArrayLoops",
+			]
+		}
+	}
+
+	task preCommit() {
+		dependsOn 'clean', 'build'
+		doLast {
+			println 'Pre-commit check Passed!'
+		}
+	}
+
+	test {
+		useJUnitPlatform {
+			excludeTags "IntegrationTest"
+			excludeTags "Probe"
+		}
+
+		// Always run tests, even when nothing changed.
+		dependsOn 'cleanTest'
+
+		// Show test results.
+		testLogging {
+			events "passed", "skipped", "failed"
+		}
+	}
+
+	spotless {
+		// optional: limit format enforcement to just the files changed by this feature branch
+		ratchetFrom 'origin/main'
+
+		format 'misc', {
+			// define the files to apply `misc` to
+			target '*.gradle', '.gitattributes', '.gitignore'
+
+			// define the steps to apply to those files
+			trimTrailingWhitespace()
+			indentWithTabs() // or spaces. Takes an integer argument if you don't like 4
+			endWithNewline()
+		}
+
+		java {
+			googleJavaFormat()
+		}
+	}
+}
+
+group = 'edu.bu'
+version = '1.0-SNAPSHOT'
+
+repositories {
+	mavenCentral()
+}
+
+kotlin {
+	jvmToolchain(11)
+}

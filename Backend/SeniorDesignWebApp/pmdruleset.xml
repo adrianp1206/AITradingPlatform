@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         name="Custom Ruleset"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 http://pmd.sourceforge.net/ruleset_2_0_0.xsd"
+         xsi:noNamespaceSchemaLocation="http://pmd.sourceforge.net/ruleset_2_0_0.xsd">
+
+    <description>
+        Custom PMD ruleset
+    </description>
+
+    <rule ref="category/java/documentation.xml/CommentRequired">
+        <properties>
+            <property name="classCommentRequirement" value="Required"/>
+            <property name="fieldCommentRequirement" value="Ignored"/>
+            <property name="publicMethodCommentRequirement" value="Ignored"/>
+        </properties>
+    </rule>
+
+    <!-- Non-Commenting Source Statements-->
+    <rule ref="category/java/design.xml/NcssCount">
+        <properties>
+            <property name="methodReportLevel" value="20"/>
+        </properties>
+    </rule>
+
+</ruleset>

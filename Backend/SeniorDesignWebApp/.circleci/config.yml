@@ -1,0 +1,78 @@
+version: 2.1
+jobs:
+  build-and-fully-test-java:
+    docker:
+      - image: cimg/openjdk:17.0
+    steps:
+      - checkout
+      - run:
+          name: Install AWS CLI
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y awscli
+      - run:
+          name: Configure AWS CLI Profile
+          command: |
+            aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID --profile default
+            aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY --profile default
+            aws configure set region $AWS_DEFAULT_REGION --profile default
+      - run:
+          name: Verify AWS Configuration
+          command: aws sts get-caller-identity --profile default
+      - run:
+          name: Calculate cache key
+          command: |-
+            find . -name 'pom.xml' -o -name 'gradlew*' -o -name '*.gradle*' | \
+                    sort | xargs cat > /tmp/CIRCLECI_CACHE_KEY
+      - restore_cache:
+          key: cache-{{ checksum "/tmp/CIRCLECI_CACHE_KEY" }}
+      - run:
+          command: gradle clean build
+      - run:
+          command: ./serviceTest.sh
+      - run:
+          name: build deployable artifact
+          command: gradle monolith-service:uberJar
+      - run:
+          name: copy artifacts
+          command: cp monolith-service/build/libs/* build/libs/
+      - persist_to_workspace:
+          root: build
+          paths:
+            - libs/monolith-service-1.0-SNAPSHOT-uber.jar
+      - store_test_results:
+          path: build/test-results
+      - save_cache:
+          key: cache-{{ checksum "/tmp/CIRCLECI_CACHE_KEY" }}
+          paths:
+            - ~/.gradle/caches
+      - store_artifacts:
+          path: build/reports
+  deploy:
+    docker:
+      - image: circleci/python:3.8
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - add_ssh_keys:
+          fingerprints:
+            - SHA256:F73kAVEUetGCTVynHXIb4EXNTermnbApikPXU6Q6bnI
+      - run:
+          name: Stop current monolith-service process in AWS
+          command: ssh -v -o StrictHostKeyChecking=no ec2-user@18.191.235.217 'pkill -f monolith-service-1.0 || true' || true
+      - run:
+          name: Copy latest uber jar over to AWS
+          command: scp -v -o StrictHostKeyChecking=no /tmp/workspace/libs/monolith-service-1.0-SNAPSHOT-uber.jar ec2-user@18.191.235.217://home/ec2-user/monolith-service
+      - run:
+          name: Start latest monolith-service process in AWS
+          command: ssh -v -o StrictHostKeyChecking=no ec2-user@18.191.235.217 'setsid nohup java -jar /home/ec2-user/monolith-service/monolith-service-1.0-SNAPSHOT-uber.jar > /home/ec2-user/monolith-service/monolith-service.log 2>&1 < /dev/null &'
+workflows:
+  build-and-fully-test:
+    jobs:
+      - build-and-fully-test-java
+      - deploy:
+          requires:
+            - build-and-fully-test-java
+          filters:
+            branches:
+              only: main
