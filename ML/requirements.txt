@@ -1,0 +1,9 @@
+pandas
+numpy
+tensorflow
+xgboost
+talib
+spacy
+scikit-learn
+fastapi
+uvicorn

@@ -1,0 +1,30 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+
+# Virtual environments (you can have local venvs that shouldn't be pushed)
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Data files
+data/
+*.json
+
+# MacOS system files
+.DS_Store
+
+# Logs and debugging
+*.log
+logs/
+
+# Python-specific settings (like virtual environment directories)
+Pipfile
+Pipfile.lock
+poetry.lock
+*.env
