@@ -1,0 +1,60 @@
+plugins {
+	id 'java'
+}
+
+group = 'edu.bu'
+version = '1.0-SNAPSHOT'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation project(':stock-app-shared')
+	testImplementation platform('org.junit:junit-bom:5.10.0')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+	implementation 'software.amazon.awssdk:sqs:2.20.0'
+	implementation platform('com.google.cloud:libraries-bom:26.1.4')
+	implementation 'com.google.cloud:google-cloud-firestore'
+	implementation 'com.google.auth:google-auth-library-oauth2-http'
+	implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+}
+pmd {
+	ignoreFailures = true
+}
+tasks.withType(Pmd).configureEach {
+	enabled = false
+}
+task uberJar(type: Jar) {
+	archiveClassifier.set('uber')
+	from sourceSets.main.output
+
+	// Include dependencies
+	dependsOn configurations.runtimeClasspath
+	from {
+		configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+	}
+
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+	manifest {
+		attributes(
+				'Main-Class': 'edu.bu.StockAppServer'
+		)
+	}
+}
+
+task runService(type: JavaExec) {
+	mainClass = 'edu.bu.StockAppServer'
+	classpath = sourceSets.main.runtimeClasspath
+}
+test {
+	useJUnitPlatform()
+}
+
+task executeServerIntegrationTest(type: Test) {
+	useJUnitPlatform {
+		includeTags "IntegrationTest"
+	}
+}
