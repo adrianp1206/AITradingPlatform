@@ -19,7 +19,7 @@ def get_latest_data(ticker, days=200):
     Pull historical data for the past `days` ending yesterday.
     """
     today = datetime.date.today()
-    end_date = today - datetime.timedelta(days=1)  # Assuming yesterday is the last trading day
+    end_date = today - datetime.timedelta(days=0)  # Assuming yesterday is the last trading day
     start_date = end_date - datetime.timedelta(days=days)
     
     # Replace 'YOUR_API_KEY' with your actual API key
@@ -205,7 +205,7 @@ def predict_nlp(ticker, window=15, days=30):
 
     # Define the date range: from (end_date - days) to yesterday.
     today = datetime.date.today()
-    end_date = today - datetime.timedelta(days=1)
+    end_date = today - datetime.timedelta(days=0)
     start_date = end_date - datetime.timedelta(days=days)
 
     # Generate the weighted rolling sentiments.
@@ -318,44 +318,73 @@ def predict_rl(stock_data, dqn_model_path, xgb_model_path, feature_subset):
 # -------------------------------
 
 def main():
-    # Define parameters and paths
-    ticker = "KO"
-    lstm_model_path = "models/lstm/lstm_KO_model.h5"
-    # Uncomment and add paths for your other models as needed:
-    xgb_model_path = "models/boost/xgboost_KO.joblib"
-    dqn_model_path = "models/rl/ko_dqn.h5"
-    
-    # Feature subset used by the XGBoost model (if applicable)
-    feature_subset = [
+    # Define feature subsets for each ticker.
+    feature_subset_KO = [
         'WCLPRICE', 'BB_lower', 'APO', 'MEDPRICE', 'HT_DCPERIOD', 'TYPPRICE',
         'TRIMA', 'MACD_hist', 'T3', 'SMA', 'AVGPRICE', 'TRANGE', 'ADXR',
         'HT_TRENDMODE', 'STOCH_fastk', 'STOCH_slowk', 'STOCH_slowd', 'TEMA',
         'CMO', 'STOCH_fastd', 'HT_DCPHASE', 'AROON_DOWN', 'CCI', 'MFI', 'OBV',
         'MACD_signal', 'MINUS_DI', 'HT_LEADSINE', 'HT_PHASOR_inphase', 'WMA'
     ]
+
+    best_features_TSLA = [
+        'WCLPRICE', 'AROON_UP', 'MIDPOINT', 'TYPPRICE', 'MACD', 'BB_upper', 'MACD_hist',
+        'T3', 'ADX', 'SMA', 'PLUS_DI', 'STOCH_fastk', 'MINUS_DM', 'TEMA', 'ATR',
+        'STOCH_fastd', 'AROON_DOWN', 'BB_middle', 'NATR', 'HT_LEADSINE', 'MFI', 'OBV',
+        'HT_PHASOR_inphase', 'STOCH_slowd'
+    ]
     
-    # Step 1: Get the latest historical data
-    data = get_latest_data(ticker)
+    best_features_MSFT = [
+        'STOCH_fastd', 'PLUS_DM', 'TRANGE', 'HT_TRENDMODE', 'STOCH_fastk', 'ADOSC', 'STOCH_slowd'
+    ]
     
-    # Determine the last date in the dataset and compute the next trading day
-    last_date = max(data['Date'])
-    next_trading_date = get_next_trading_day(last_date)
+    # Create a dictionary of tickers and their corresponding parameters.
+    tickers = {
+        "KO": {
+            "lstm_model_path": "models/lstm/lstm_KO_model.h5",
+            "xgb_model_path": "models/boost/xgboost_KO.joblib",
+            "dqn_model_path": "models/rl/ko_dqn.h5",
+            "feature_subset": feature_subset_KO
+        },
+        "TSLA": {
+            "lstm_model_path": "models/lstm/lstm_TSLA_model.h5",
+            "xgb_model_path": "models/boost/xgboost_TSLA.joblib",
+            "dqn_model_path": "models/rl/tsla_dqn.h5",
+            "feature_subset": best_features_TSLA
+        },
+        "MSFT": {
+            "lstm_model_path": "models/lstm/lstm_MSFT_model.h5",
+            "xgb_model_path": "models/boost/xgboost_MSFT.joblib",
+            "dqn_model_path": "models/rl/msft_dqn.h5",
+            "feature_subset": best_features_MSFT
+        }
+    }
     
-    # Step 2: Generate predictions from each model
-    lstm_price = predict_lstm(ticker, lstm_model_path, data)
-    # Uncomment the lines below when you integrate your other models:
-    xgb_signal, xgb_prob, xgb_date = predict_xgboost(data, xgb_model_path, feature_subset)
-    nlp_sentiment, predicted_signal, nlp_date = predict_nlp(ticker)
-    rl_signal, rl_date = predict_rl(data, dqn_model_path, xgb_model_path, feature_subset)
+    # Loop through each ticker and generate predictions.
+    for ticker, params in tickers.items():
+        print(f"==================== {ticker} ====================")
+        # Step 1: Get the latest historical data
+        data = get_latest_data(ticker)
     
-    # Step 3: Print/aggregate the predictions for the next trading day
-    print("Predictions for the next trading day:")
-    print(f" Date: {next_trading_date}")
-    print(f" - LSTM predicted price: {lstm_price:.2f}")
-    # Uncomment when other models are integrated:
-    print(f" - XGBoost signal: {xgb_signal} (Probability up: {xgb_prob:.2f}) for date: {xgb_date}")
-    print(f" - NLP sentiment score: {nlp_sentiment:.2f} signifying a {predicted_signal} signal for date: {nlp_date}")
-    print(f" - RL signal: {rl_signal} for {rl_date}")
+        # Determine the last date in the dataset and compute the next trading day
+        last_date = max(data['Date'])
+        next_trading_date = get_next_trading_day(last_date)
+    
+        # Step 2: Generate predictions from each model
+        lstm_price = predict_lstm(ticker, params["lstm_model_path"], data)
+        xgb_signal, xgb_prob, xgb_date = predict_xgboost(data, params["xgb_model_path"], params["feature_subset"])
+        nlp_sentiment, nlp_signal, nlp_date = predict_nlp(ticker)
+        rl_signal, rl_date = predict_rl(data, params["dqn_model_path"], params["xgb_model_path"], params["feature_subset"])
+    
+        # Step 3: Print/aggregate the predictions for the next trading day
+        print("Predictions for the next trading day:")
+        print(f" Date: {next_trading_date}")
+        print(f" - LSTM predicted price: {lstm_price:.2f}")
+        print(f" - XGBoost signal: {xgb_signal} (Probability up: {xgb_prob:.2f}) for date: {xgb_date}")
+        print(f" - NLP sentiment score: {nlp_sentiment:.2f} signifying a {nlp_signal} signal for date: {nlp_date}")
+        print(f" - RL signal: {rl_signal} for {rl_date}")
+        print("\n")
+
 
 # -------------------------------
 # 4. Scheduling Note
