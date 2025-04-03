@@ -21,7 +21,6 @@ def train_dqn_agent(agent, env, episodes=10, save_path=None):
             
             state = next_state
             total_reward += reward
-            print(total_reward)
         
         print(f"Episode {e+1}/{episodes} finished. Total Reward: {total_reward:.2f}, Epsilon: {agent.epsilon:.3f}")
 
