@@ -10,6 +10,18 @@ from joblib import load
 # Import your data processing functions and any other required modules
 from data_processing import fetch_stock_data_alpha, calculate_technical_indicators
 
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+# Path to your service account key JSON file
+service_account_path = "firebase.json"
+
+# Initialize the Firebase app (only do this once)
+cred = credentials.Certificate(service_account_path)
+firebase_admin.initialize_app(cred)
+
+# Create a Firestore client
+db = firestore.client()
 # -------------------------------
 # 1. Helper Functions
 # -------------------------------
@@ -384,6 +396,26 @@ def main():
         print(f" - NLP sentiment score: {nlp_sentiment:.2f} signifying a {nlp_signal} signal for date: {nlp_date}")
         print(f" - RL signal: {rl_signal} for {rl_date}")
         print("\n")
+
+        doc_data = {
+            "lstm_predicted_price": float(lstm_price),
+            "nlp_sentiment_score": float(nlp_sentiment),
+            "rl_recommendation": rl_signal,
+            "xgboost_prob": float(xgb_prob),
+            "xgboost_signal": "Up" if xgb_signal == 1 else "Down",
+            "next_trading_date": next_trading_date.isoformat(),
+            "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat()  # UTC timestamp
+        }
+
+        # Instead of overwriting, add a new document to the 'predictions' subcollection for this ticker.
+        doc_ref = db.collection("StockSignals").document(ticker)
+        predictions_subcollection = doc_ref.collection("predictions")
+        
+        # Use the current UTC timestamp as a unique document ID.
+        timestamp_id = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
+        predictions_subcollection.document(timestamp_id).set(doc_data)
+        
+        print(f"Firestore: Saved prediction history for {ticker} with ID {timestamp_id}.\n")
 
 
 # -------------------------------

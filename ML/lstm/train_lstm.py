@@ -1,4 +1,9 @@
-from data_processing import fetch_stock_data, preprocess_data, create_lstm_input
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from data_processing import fetch_stock_data_alpha, preprocess_data_alpha, create_lstm_input
 from lstm_model import build_lstm_model
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,10 +14,10 @@ from tensorflow.keras.models import load_model
 from sklearn.metrics import r2_score
 
 def train_lstm_model(ticker):
-    stock_data = fetch_stock_data(ticker, '2008-01-01', '2021-12-31')
-    stock_data, scaler = preprocess_data(stock_data)
+    stock_data = fetch_stock_data_alpha(ticker,'NL9PDOM5JWRPAT9O', '2008-01-01', '2021-12-31')
+    stock_data, scaler = preprocess_data_alpha(stock_data)
 
-    X, y = create_lstm_input(stock_data, target_column='Adj Close', lookback=20)
+    X, y = create_lstm_input(stock_data, target_column='Close', lookback=20)
     
     train_size = int(0.7 * len(X))
     dev_size = int(0.15 * len(X))

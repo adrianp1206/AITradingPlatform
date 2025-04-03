@@ -1,3 +1,6 @@
+import sys
+import os
+
 import xgboost as xgb
 import numpy as np
 from sklearn.model_selection import TimeSeriesSplit
@@ -5,7 +8,9 @@ from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 )
 from joblib import dump
-from data_processing import fetch_stock_data, calculate_technical_indicators
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from data_processing import fetch_stock_data_alpha, calculate_technical_indicators
 
 def train_xgboost(
     ticker,
@@ -32,10 +37,20 @@ def train_xgboost(
             'eval_metric': 'logloss'
         }
     
-    data = fetch_stock_data(ticker, start_date=start_date, end_date=end_date)
+    data = fetch_stock_data_alpha(ticker, 'NL9PDOM5JWRPAT9O', start_date=start_date, end_date=end_date)
     data = calculate_technical_indicators(data)
+    fundamental_cols = [
+    'DE Ratio', 'Return on Equity', 'Price/Book',
+    'Profit Margin', 'Diluted EPS', 'Beta'
+    ]
+
+    data = data.drop(columns=[col for col in fundamental_cols if col in data.columns])
+
+    # Create target
     data['Price_Change'] = data['Close'].diff()
     data['Target'] = (data['Price_Change'] > 0).astype(int)
+
+    # Drop rows with NaNs (after removing fundamental columns)
     data = data.dropna()
 
     X = data[feature_subset] if feature_subset else data.drop(columns=['Price_Change', 'Target'])
