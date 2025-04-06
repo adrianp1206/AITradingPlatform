@@ -27,13 +27,13 @@ public class PredictionHandler implements HttpHandler {
     Firestore tempDb = null;
     try {
       FileInputStream serviceAccount =
-          new FileInputStream("C:/Users/tenni/documents/SeniorDesign/serviceAccount.json");
+              new FileInputStream("C:/Users/tenni/documents/SeniorDesign/serviceAccount.json");
 
       FirestoreOptions firestoreOptions =
-          FirestoreOptions.newBuilder()
-              .setProjectId("seniordesign-35b8b")
-              .setCredentials(ServiceAccountCredentials.fromStream(serviceAccount))
-              .build();
+              FirestoreOptions.newBuilder()
+                      .setProjectId("seniordesign-35b8b")
+                      .setCredentials(ServiceAccountCredentials.fromStream(serviceAccount))
+                      .build();
 
       tempDb = firestoreOptions.getService();
     } catch (IOException e) {
@@ -50,42 +50,53 @@ public class PredictionHandler implements HttpHandler {
     }
 
     try {
-      LocalDate yesterday = LocalDate.now(ZoneId.systemDefault()).minusDays(1);
-      ZonedDateTime startOfYesterday = yesterday.atStartOfDay(ZoneId.systemDefault());
-      ZonedDateTime endOfYesterday = yesterday.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault());
-      Instant startInstant = startOfYesterday.toInstant();
-      Instant endInstant = endOfYesterday.toInstant();
 
-      Timestamp startTimestamp =
-          Timestamp.ofTimeSecondsAndNanos(startInstant.getEpochSecond(), startInstant.getNano());
-      Timestamp endTimestamp =
-          Timestamp.ofTimeSecondsAndNanos(endInstant.getEpochSecond(), endInstant.getNano());
+      ZonedDateTime now = ZonedDateTime.now(ZoneId.systemDefault());
+      ZonedDateTime yesterdayFivePM = now.minusDays(1).withHour(17).withMinute(0).withSecond(0).withNano(0);
+      ZonedDateTime yesterdayEnd = now.minusDays(1).withHour(23).withMinute(59).withSecond(59).withNano(999999999);
 
-      CollectionReference predictionsRef = database.collection("StockSignals");
-      Query query =
-          predictionsRef
-              .whereGreaterThanOrEqualTo("updated_at", startTimestamp)
-              .whereLessThanOrEqualTo("updated_at", endTimestamp);
-
-      ApiFuture<QuerySnapshot> querySnapshot = query.get();
-      List<QueryDocumentSnapshot> documents = querySnapshot.get().getDocuments();
+      Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(
+              yesterdayFivePM.toInstant().getEpochSecond(), yesterdayFivePM.toInstant().getNano());
+      Timestamp endTimestamp = Timestamp.ofTimeSecondsAndNanos(
+              yesterdayEnd.toInstant().getEpochSecond(), yesterdayEnd.toInstant().getNano());
 
       JSONArray predictionsArray = new JSONArray();
-      for (DocumentSnapshot doc : documents) {
-        Map<String, Object> data = doc.getData();
-        JSONObject predictionJson = new JSONObject();
-        predictionJson.put("ticker", doc.getId());
 
-        if (data != null) {
-          for (Map.Entry<String, Object> entry : data.entrySet()) {
-            if (entry.getValue() instanceof Timestamp) {
-              predictionJson.put(entry.getKey(), ((Timestamp)entry.getValue()).toDate().toInstant().toString());
-            } else {
-              predictionJson.put(entry.getKey(), entry.getValue());
+
+      CollectionReference signalsRef = database.collection("StockSignals");
+      ApiFuture<QuerySnapshot> tickersFuture = signalsRef.get();
+      List<QueryDocumentSnapshot> tickerDocs = tickersFuture.get().getDocuments();
+
+      for (DocumentSnapshot tickerDoc : tickerDocs) {
+        String tickerSymbol = tickerDoc.getId();
+
+        CollectionReference predictionsRef = signalsRef.document(tickerSymbol).collection("predictions");
+
+        Query predictionsQuery = predictionsRef
+                .whereGreaterThanOrEqualTo("updated_at", startTimestamp)
+                .whereLessThanOrEqualTo("updated_at", endTimestamp);
+
+        ApiFuture<QuerySnapshot> predictionsFuture = predictionsQuery.get();
+        List<QueryDocumentSnapshot> predictionDocs = predictionsFuture.get().getDocuments();
+
+        for (DocumentSnapshot predictionDoc : predictionDocs) {
+          Map<String, Object> data = predictionDoc.getData();
+          JSONObject predictionJson = new JSONObject();
+
+          predictionJson.put("ticker", tickerSymbol);
+          predictionJson.put("prediction_id", predictionDoc.getId());
+
+          if (data != null) {
+            for (Map.Entry<String, Object> entry : data.entrySet()) {
+              if (entry.getValue() instanceof Timestamp) {
+                predictionJson.put(entry.getKey(), ((Timestamp) entry.getValue()).toDate().toInstant().toString());
+              } else {
+                predictionJson.put(entry.getKey(), entry.getValue());
+              }
             }
           }
+          predictionsArray.add(predictionJson);
         }
-        predictionsArray.add(predictionJson);
       }
 
       JSONObject responseJson = new JSONObject();
