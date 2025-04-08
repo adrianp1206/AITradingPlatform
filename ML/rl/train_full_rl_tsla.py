@@ -60,6 +60,9 @@ def build_rl_input_csv(ticker, start_date, end_date, api_key, lstm_model_path, x
     print(f"✅ RL input saved to {output_path}")
 
 def train_rl_from_csv(input_csv, episodes=10, save_path_1=None, save_path_2=None):
+    import os
+    from google.colab import files
+    
     df = pd.read_csv(input_csv)
 
     env = StockTradingEnv(df, initial_balance=10000)
@@ -69,6 +72,14 @@ def train_rl_from_csv(input_csv, episodes=10, save_path_1=None, save_path_2=None
     env = StockTradingEnvLongOnly(df, initial_balance=10000)
     agent = DQNAgent(state_size=env.state_size, action_size=len(env.action_space))
     train_dqn_agent(agent, env, episodes=episodes, save_path=save_path_2)
+
+    if save_path_1 and os.path.exists(save_path_1):
+        print(f"📥 Downloading {save_path_1}")
+        files.download(save_path_1)
+
+    if save_path_2 and os.path.exists(save_path_2):
+        print(f"📥 Downloading {save_path_2}")
+        files.download(save_path_2)
 
 if __name__ == "__main__":
     build_rl_input_csv(

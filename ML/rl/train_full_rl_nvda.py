@@ -83,19 +83,19 @@ def train_rl_from_csv(input_csv, episodes=10, save_path_1=None, save_path_2=None
 
 if __name__ == "__main__":
     build_rl_input_csv(
-        ticker="MSFT",
+        ticker="NVDA",
         start_date="2021-05-01",
         end_date="2024-04-01",
         api_key="NL9PDOM5JWRPAT9O",
-        lstm_model_path="../models/lstm/lstm_MSFT_model.h5",
-        xgb_model_path="../models/boost/xgboost_MSFT.joblib",
-        xgb_features=['STOCH_fastd', 'PLUS_DM', 'TRANGE', 'HT_TRENDMODE', 'STOCH_fastk', 'ADOSC', 'STOCH_slowd'],
-        output_path="MSFT_RL_input.csv"
+        lstm_model_path="../models/lstm/lstm_NVDA_model.h5",
+        xgb_model_path="../models/boost/xgboost_NVDA.joblib",
+        xgb_features=['MEDPRICE', 'HT_DCPHASE', 'STOCH_fastd', 'AROON_UP', 'HT_SINE', 'APO', 'MINUS_DM', 'WCLPRICE', 'BB_upper', 'NATR', 'TYPPRICE', 'MIDPRICE', 'TRANGE', 'AROON_DOWN', 'DEMA', 'AVGPRICE', 'CMO', 'ROC', 'MIDPOINT', 'STOCH_slowk', 'TRIMA', 'T3', 'STOCH_slowd', 'CCI', 'MFI', 'OBV', 'STOCH_fastk'],
+        output_path="NVDA_RL_input.csv"
     )
 
     # train_rl_from_csv(
-    #     input_csv="MSFT_RL_input.csv",
+    #     input_csv="KO_RL_input.csv",
     #     episodes=5,
-    #     save_path_1="msft_dqn_model_both.h5",
-    #     save_path_2="msft_dqn_model_long.h5"
+    #     save_path_1="ko_dqn_model_both.h5",
+    #     save_path_2="ko_dqn_model_long.h5"
     # )

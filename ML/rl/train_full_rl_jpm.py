@@ -82,20 +82,20 @@ def train_rl_from_csv(input_csv, episodes=10, save_path_1=None, save_path_2=None
         files.download(save_path_2)
 
 if __name__ == "__main__":
-    build_rl_input_csv(
-        ticker="MSFT",
-        start_date="2021-05-01",
-        end_date="2024-04-01",
-        api_key="NL9PDOM5JWRPAT9O",
-        lstm_model_path="../models/lstm/lstm_MSFT_model.h5",
-        xgb_model_path="../models/boost/xgboost_MSFT.joblib",
-        xgb_features=['STOCH_fastd', 'PLUS_DM', 'TRANGE', 'HT_TRENDMODE', 'STOCH_fastk', 'ADOSC', 'STOCH_slowd'],
-        output_path="MSFT_RL_input.csv"
-    )
-
-    # train_rl_from_csv(
-    #     input_csv="MSFT_RL_input.csv",
-    #     episodes=5,
-    #     save_path_1="msft_dqn_model_both.h5",
-    #     save_path_2="msft_dqn_model_long.h5"
+    # build_rl_input_csv(
+    #     ticker="JPM",
+    #     start_date="2021-05-01",
+    #     end_date="2024-04-01",
+    #     api_key="NL9PDOM5JWRPAT9O",
+    #     lstm_model_path="../models/lstm/lstm_JPM_model.h5",
+    #     xgb_model_path="../models/boost/xgboost_JPM.joblib",
+    #     xgb_features=['WMA', 'HT_DCPHASE', 'STOCH_fastd', 'AROON_UP', 'TEMA', 'HT_PHASOR_quadrature', 'WCLPRICE', 'NATR', 'ADXR', 'TYPPRICE', 'MIDPRICE', 'TRANGE', 'MACD', 'MACD_hist', 'AROONOSC', 'ADOSC', 'CMO', 'AVGPRICE', 'ROC', 'STOCH_slowk', 'TRIMA', 'MIDPOINT', 'STOCH_slowd', 'MFI', 'STOCH_fastk'],
+    #     output_path="JPM_RL_input.csv"
     # )
+
+    train_rl_from_csv(
+        input_csv="KO_RL_input.csv",
+        episodes=5,
+        save_path_1="ko_dqn_model_both.h5",
+        save_path_2="ko_dqn_model_long.h5"
+    )

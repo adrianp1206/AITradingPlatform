@@ -82,20 +82,20 @@ def train_rl_from_csv(input_csv, episodes=10, save_path_1=None, save_path_2=None
         files.download(save_path_2)
 
 if __name__ == "__main__":
-    build_rl_input_csv(
-        ticker="MSFT",
-        start_date="2021-05-01",
-        end_date="2024-04-01",
-        api_key="NL9PDOM5JWRPAT9O",
-        lstm_model_path="../models/lstm/lstm_MSFT_model.h5",
-        xgb_model_path="../models/boost/xgboost_MSFT.joblib",
-        xgb_features=['STOCH_fastd', 'PLUS_DM', 'TRANGE', 'HT_TRENDMODE', 'STOCH_fastk', 'ADOSC', 'STOCH_slowd'],
-        output_path="MSFT_RL_input.csv"
-    )
-
-    # train_rl_from_csv(
-    #     input_csv="MSFT_RL_input.csv",
-    #     episodes=5,
-    #     save_path_1="msft_dqn_model_both.h5",
-    #     save_path_2="msft_dqn_model_long.h5"
+    # build_rl_input_csv(
+    #     ticker="AMZN",
+    #     start_date="2021-05-01",
+    #     end_date="2024-04-01",
+    #     api_key="NL9PDOM5JWRPAT9O",
+    #     lstm_model_path="../models/lstm/lstm_AMZN_model.h5",
+    #     xgb_model_path="../models/boost/xgboost_AMZN.joblib",
+    #     xgb_features=['NATR', 'HT_DCPHASE', 'APO', 'STOCH_fastd', 'CMO', 'MIDPOINT', 'MOM', 'HT_PHASOR_quadrature', 'AROON_UP', 'MINUS_DM', 'AROON_DOWN', 'PLUS_DM', 'MACD_signal', 'STOCH_slowd', 'TRANGE', 'BB_lower', 'MACD_hist', 'ROC', 'STOCH_fastk', 'WCLPRICE', 'BB_upper', 'ADOSC', 'CCI', 'HT_DCPERIOD', 'ADX', 'STOCH_slowk', 'MEDPRICE', 'AVGPRICE', 'TRIMA', 'MINUS_DI', 'T3'],
+    #     output_path="AMZN_RL_input.csv"
     # )
+
+    train_rl_from_csv(
+        input_csv="KO_RL_input.csv",
+        episodes=5,
+        save_path_1="ko_dqn_model_both.h5",
+        save_path_2="ko_dqn_model_long.h5"
+    )

@@ -1,32 +1,23 @@
-# Paths setup
 import sys
 import os
-
-ml_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-
-# Add ML root to sys.path so we can import data_processing.py
-if ml_root not in sys.path:
-    sys.path.append(ml_root)
-
-# Add boost and lstm directories to sys.path if needed
-boost_path = os.path.join(ml_root, 'boost')
-lstm_path = os.path.join(ml_root, 'lstm')
-
-for path in [boost_path, lstm_path]:
-    if path not in sys.path:
-        sys.path.append(path)
-
-# Now imports will work
-from data_processing import fetch_stock_data_alpha
-from run_boost import xgboost_inference_df_from_df
-# from run_lstm import generate_lstm_predictions_from_df
-
 import pandas as pd
+import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from tensorflow.keras.models import load_model
+from joblib import load  # For XGBoost model
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from data_processing import fetch_stock_data_alpha, calculate_technical_indicators, preprocess_data_alpha, create_lstm_input
 from dqn_agent import DQNAgent
-from trading_env import StockTradingEnv
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '../lstm'))
+from lstm_model import Attention
+sys.path.append(os.path.join(os.path.dirname(__file__), '../nlp'))
+from run_nlp import generate_next_day_weighted_rolling_sentiments
+
+from trading_env_shares import StockTradingEnv, StockTradingEnvLongOnly
 
 def run_trained_agent_on_data(
     ticker,
@@ -36,37 +27,105 @@ def run_trained_agent_on_data(
     dqn_model_path,
     xgb_model_path,
     lstm_model_path,
-    feature_subset=None,
+    xgb_features=None,
     plot=True
 ):
     """
-    Run a trained DQN agent on fresh market data (no CSV needed).
+    Run a trained DQN agent on 'merged' data that includes:
+      - Raw OHLCV data
+      - LSTM predictions
+      - XGBoost predictions
+      - Sentiment scores
+    for a proper backtest.
     """
-    # Step 1: Fetch stock data
-    stock_df = fetch_stock_data_alpha(ticker, api_key=api_key, start_date=start_date, end_date=end_date)
 
-    # Ensure 'Date' column exists
-    if 'Date' not in stock_df.columns:
-        stock_df['Date'] = stock_df.index
+    # ---------------------------------------------------------
+    # 1) Fetch base OHLCV data
+    # ---------------------------------------------------------
+    df_base = fetch_stock_data_alpha(ticker, start_date=start_date, end_date=end_date, api_key=api_key)
+    # Ensure 'Date' is a proper column
+    if 'Date' not in df_base.columns:
+        df_base['Date'] = df_base.index
+    df_base['Date'] = pd.to_datetime(df_base['Date']).dt.date
+    df_base = df_base.reset_index(drop=True)
 
-    stock_df['Date'] = pd.to_datetime(stock_df['Date']).dt.date
-    stock_df = stock_df.reset_index(drop=True)
+    # ---------------------------------------------------------
+    # 2) Generate LSTM predictions (replicating build_rl_input_csv steps)
+    # ---------------------------------------------------------
+    # a) Preprocess data for LSTM
+    df_lstm_raw, scaler = preprocess_data_alpha(df_base.copy())
+    # b) Create LSTM input
+    X_lstm, _ = create_lstm_input(df_lstm_raw.copy(), target_column='Close', lookback=20)
+    model_lstm = load_model(lstm_model_path, custom_objects={'Attention': Attention})
+    lstm_preds = model_lstm.predict(X_lstm)
 
-    # Step 2: Run XGBoost predictions using in-memory DataFrame version
-    df_xgb = xgboost_inference_df_from_df(stock_df.copy(), xgb_model_path, feature_subset)
+    # d) "Unscale" the LSTM predictions
+    #    The shape of 'scaler.min_' or 'scaler.data_min_' depends on your scaler
+    lstm_pred_padded = np.zeros((len(lstm_preds), scaler.min_.shape[0]))
+    lstm_pred_padded[:, 0] = lstm_preds.flatten()
+    lstm_unscaled = scaler.inverse_transform(lstm_pred_padded)[:, 0]
 
-    # Step 3: Merge stock data and model predictions
-    df_merged = pd.merge(stock_df, df_xgb, on='Date', how='inner')
+    # e) Align LSTM predictions with the correct dates
+    df_lstm = df_base.iloc[-len(lstm_unscaled):].copy()
+    df_lstm["LSTM_Pred"] = lstm_unscaled
 
-    print(stock_df['Date'].dtype, stock_df['Date'].head())
-    print(df_xgb['Date'].dtype, df_xgb['Date'].head())
-    print("Merged shape:", df_merged.shape)
+    # ---------------------------------------------------------
+    # 3) Generate sentiment data
+    # ---------------------------------------------------------
+    sentiment_df = generate_next_day_weighted_rolling_sentiments(ticker, start_date, end_date)
+    sentiment_df = sentiment_df.rename(columns={"next_day_sentiment": "Sentiment_Score"})
+    # Make sure 'Date' in sentiment_df is of the same date format
+    sentiment_df["Date"] = pd.to_datetime(sentiment_df["Date"]).dt.date
 
-    # Step 4: Set up environment
-    env = StockTradingEnv(df_merged)
+    # ---------------------------------------------------------
+    # 4) Generate XGBoost predictions
+    # ---------------------------------------------------------
+    df_xgb = fetch_stock_data_alpha(ticker, start_date=start_date, end_date=end_date, api_key=api_key)
+    df_xgb = calculate_technical_indicators(df_xgb)
+    if 'Date' not in df_xgb.columns:
+        df_xgb['Date'] = df_xgb.index
+    df_xgb['Date'] = pd.to_datetime(df_xgb['Date']).dt.date
+    df_xgb = df_xgb.reset_index(drop=True)
+
+    model_xgb = load(xgb_model_path)  # Load XGB model
+    # Use the specified XGB features (like feature_subset in your old code)
+    if xgb_features is None:
+        raise ValueError("Please provide xgb_features (list of features) for XGBoost.")
+    X_xgb = df_xgb[xgb_features].dropna()
+
+    # Filter df_xgb to rows that have no NaN in the features
+    df_xgb = df_xgb.loc[X_xgb.index]
+    df_xgb["XGB_Pred"] = model_xgb.predict(X_xgb)
+    # If your XGB model is binary classification, you can do predict_proba
+    df_xgb["XGB_Prob_Up"] = model_xgb.predict_proba(X_xgb)[:, 1]
+    df_xgb = df_xgb.reset_index(drop=True)
+
+    # ---------------------------------------------------------
+    # 5) Merge everything into ONE DataFrame
+    # ---------------------------------------------------------
+    # Merge LSTM predictions
+    merged = pd.merge(
+        df_lstm[["Date", "LSTM_Pred"]],
+        df_base,
+        on="Date", 
+        how="inner"
+    )
+    # Merge sentiment
+    merged = pd.merge(merged, sentiment_df[["Date", "Sentiment_Score"]], on="Date", how="inner")
+    # Merge XGB
+    merged = pd.merge(merged, df_xgb[["Date", "XGB_Pred", "XGB_Prob_Up"]], on="Date", how="inner")
+
+    # merged now contains: [Date, OHLCV columns, LSTM_Pred, Sentiment_Score, XGB_Pred, XGB_Prob_Up, ...]
+
+    # ---------------------------------------------------------
+    # 6) Create StockTradingEnv with merged data
+    # ---------------------------------------------------------
+    env = StockTradingEnv(merged)
     agent = DQNAgent(state_size=env.state_size, action_size=len(env.action_space))
 
-    # Step 5: Load the trained model
+    # ---------------------------------------------------------
+    # 7) Load the trained DQN model
+    # ---------------------------------------------------------
     def custom_mse(y_true, y_pred):
         return tf.reduce_mean(tf.square(y_pred - y_true))
 
@@ -74,7 +133,9 @@ def run_trained_agent_on_data(
     model = tf.keras.models.load_model(dqn_model_path, custom_objects=custom_objects)
     agent.model = model
 
-    # Step 6: Backtest loop
+    # ---------------------------------------------------------
+    # 8) Run the Backtest Loop
+    # ---------------------------------------------------------
     state = env.reset()
     done = False
     logs = []
@@ -82,11 +143,13 @@ def run_trained_agent_on_data(
 
     while not done:
         action = agent.act(state)
-
-        # Safely log current info before env.step() bumps the index
+        
+        # Log info before stepping
         current_idx = min(env.current_step, len(env.df) - 1)
         date_val = env.df.iloc[current_idx]["Date"]
-        close_val = env.df.iloc[current_idx - 1]["Close"] if current_idx > 0 else None
+        close_val = (
+            env.df.iloc[current_idx - 1]["Close"] if current_idx > 0 else np.nan
+        )
 
         next_state, reward, done, info = env.step(action)
         cumulative_reward += reward
@@ -104,7 +167,9 @@ def run_trained_agent_on_data(
 
         state = next_state
 
-    # Step 7: Wrap up
+    # ---------------------------------------------------------
+    # 9) Visualization / Return results
+    # ---------------------------------------------------------
     df_results = pd.DataFrame(logs)
 
     if plot:
@@ -118,7 +183,6 @@ def run_trained_agent_on_data(
         plt.tight_layout()
         plt.show()
 
-        print("REALIZED PROFIT:")
-        print(df_results["Realized_Profit"].iloc[-1])
+        print("FINAL REALIZED PROFIT:", df_results["Realized_Profit"].iloc[-1])
 
     return df_results

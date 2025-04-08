@@ -81,7 +81,7 @@ def fetch_stock_data_polygon(ticker, api_key, start_date='2015-01-01', end_date=
     df.set_index('Date', inplace=True)
     return df
 
-def fetch_stock_data_alpha(ticker, api_key='BTR4OON08VH41NYX', start_date='2010-01-01', end_date=None):
+def fetch_stock_data_alpha(ticker, api_key='NL9PDOM5JWRPAT9O', start_date='2010-01-01', end_date=None):
     """
     Fetch daily OHLCV data + key fundamentals from Alpha Vantage.
     """

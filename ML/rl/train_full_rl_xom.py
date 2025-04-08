@@ -83,19 +83,19 @@ def train_rl_from_csv(input_csv, episodes=10, save_path_1=None, save_path_2=None
 
 if __name__ == "__main__":
     build_rl_input_csv(
-        ticker="MSFT",
+        ticker="XOM",
         start_date="2021-05-01",
         end_date="2024-04-01",
         api_key="NL9PDOM5JWRPAT9O",
-        lstm_model_path="../models/lstm/lstm_MSFT_model.h5",
-        xgb_model_path="../models/boost/xgboost_MSFT.joblib",
-        xgb_features=['STOCH_fastd', 'PLUS_DM', 'TRANGE', 'HT_TRENDMODE', 'STOCH_fastk', 'ADOSC', 'STOCH_slowd'],
-        output_path="MSFT_RL_input.csv"
+        lstm_model_path="../models/lstm/lstm_XOM_model.h5",
+        xgb_model_path="../models/boost/xgboost_XOM.joblib",
+        xgb_features=['HT_DCPERIOD', 'HT_SINE', 'MINUS_DM', 'MACD_hist', 'RSI', 'TRANGE', 'CCI', 'HT_PHASOR_inphase', 'MACD', 'AD', 'HT_PHASOR_quadrature', 'TEMA', 'STOCH_slowd', 'T3', 'BB_upper', 'MFI', 'ADX', 'STOCH_slowk', 'ADOSC', 'STOCH_fastk', 'ATR', 'ROC'],
+        output_path="XOM_RL_input.csv"
     )
 
     # train_rl_from_csv(
-    #     input_csv="MSFT_RL_input.csv",
+    #     input_csv="KO_RL_input.csv",
     #     episodes=5,
-    #     save_path_1="msft_dqn_model_both.h5",
-    #     save_path_2="msft_dqn_model_long.h5"
+    #     save_path_1="ko_dqn_model_both.h5",
+    #     save_path_2="ko_dqn_model_long.h5"
     # )
