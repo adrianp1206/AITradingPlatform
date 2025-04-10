@@ -15,16 +15,26 @@ from sklearn.metrics import (
 import matplotlib.pyplot as plt
 from data_processing import fetch_stock_data_alpha, calculate_technical_indicators
 
-def backtest_xgboost(ticker, start_date='2022-01-01', end_date='2024-01-01', feature_subset=None):
+def backtest_xgboost(ticker, 
+                     start_date='2022-01-01', 
+                     end_date='2024-01-01', 
+                     feature_subset=None,
+                     capital=10000):
     """
-    Backtest a saved XGBoost model on unseen data, with the target shifted by 1 day.
-    We predict tomorrow's movement using today's data.
-    """
+    Backtest a saved XGBoost model on unseen data (one ticker at a time),
+    allocating `capital` dollars to the stock whenever the model predicts "Up"
+    for the next day.
 
+    We still shift the target by 1 day (predict tomorrow's movement using today's data),
+    but now the daily P/L is in actual dollars rather than 'points per share'.
+
+    Returns a dictionary of metrics and also the per-day P/L (so you can combine
+    multiple tickers' P/L outside this function).
+    """
     # ---------------------------
     # 1. Load the XGBoost model
     # ---------------------------
-    model_filename = f"../models/boost/xgboost_{ticker}.joblib"
+    model_filename = f"../models/boost/xgboost_{ticker}_new.joblib"
     model = load(model_filename)
     print(f"Loaded model from {model_filename}")
 
@@ -35,98 +45,134 @@ def backtest_xgboost(ticker, start_date='2022-01-01', end_date='2024-01-01', fea
     data = calculate_technical_indicators(data)
 
     # ----------------------------------------------------------------------------
-    # 3. SHIFT the target to predict tomorrow's movement
-    #    * We create 'Future_Close' = 'Close'.shift(-1)
-    #    * Price_Change = Future_Close - Close
-    #    * Target = 1 if Price_Change > 0 else 0
+    # 3. SHIFT the target to predict tomorrow's movement:
+    #    Create 'Future_Close' = 'Close'.shift(-1)
+    #    Price_Change = Future_Close - Close
+    #    Target = 1 if Price_Change > 0 else 0
     # ----------------------------------------------------------------------------
     data['Future_Close'] = data['Close'].shift(-1)
     data['Price_Change'] = data['Future_Close'] - data['Close']
     data['Target'] = (data['Price_Change'] > 0).astype(int)
-
-    # Drop rows where 'Future_Close' is NaN (the last row usually)
     data.dropna(subset=['Future_Close'], inplace=True)
 
-    # Keep relevant features + 'Price_Change', 'Target', 'Close'
+    # -------------------------------------------------------
+    # 4. Feature Selection: Ensure consistency with training
+    # -------------------------------------------------------
     if feature_subset is None:
-        # If no subset provided, use all columns except these
-        relevant_columns = list(data.columns)
-        # remove duplicates if they exist
-        relevant_columns = list(dict.fromkeys(relevant_columns))
+        X = data.drop(columns=['Price_Change', 'Target', 'Close'], errors='ignore')
     else:
-        relevant_columns = feature_subset + ['Price_Change', 'Target', 'Close']
+        X = data[feature_subset]
+    y = data['Target']
 
-    data = data[relevant_columns].dropna()  # ensure we drop any remaining NaNs
-
-    # Check shape and columns
-    print("Data columns after shifting target:", data.columns.tolist())
-    print("Data shape after shifting target and dropna:", data.shape)
-
-    # ----------------------------------------------------
-    # 4. Prepare X_test and y_test for the backtest period
-    # ----------------------------------------------------
+    # -----------------------------------------------------
+    # 5. Prepare X_test, y_test and close_prices
+    # -----------------------------------------------------
     if feature_subset is None:
         X_test = data.drop(columns=['Price_Change', 'Target', 'Close'], errors='ignore')
     else:
         X_test = data[feature_subset]
     y_test = data['Target']
-    close_prices = data['Close']  # for P/L calculation
+    close_prices = data['Close']  # used for computing P/L
 
     # -------------------------------------------------------------
-    # 5. Predict with the model (labels and probabilities)
+    # 6. Predict with the model (labels and probabilities)
     # -------------------------------------------------------------
     y_pred = model.predict(X_test)
     y_pred_proba = model.predict_proba(X_test)[:, 1]
 
     # ----------------------------
-    # 6. Calculate classification metrics
+    # 7. Calculate classification metrics
     # ----------------------------
-    metrics = {
-        'accuracy': accuracy_score(y_test, y_pred),
-        'precision': precision_score(y_test, y_pred, zero_division=0),
-        'recall': recall_score(y_test, y_pred),
-        'f1_score': f1_score(y_test, y_pred),
-        'roc_auc': roc_auc_score(y_test, y_pred_proba)
-    }
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred, zero_division=0)
+    recall = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    roc_auc = roc_auc_score(y_test, y_pred_proba)
 
-    # Confusion Matrix
+    # Confusion matrix (comment out if you don't want the plot)
     cm = confusion_matrix(y_test, y_pred)
     ConfusionMatrixDisplay(cm, display_labels=["Down", "Up"]).plot(cmap="Blues")
     plt.title(f"Confusion Matrix for {ticker}")
     plt.show()
 
     # ------------------------------------------------------------
-    # 7. Calculate P/L with SHIFTED positions
-    #    positions[i] = 1 if model says "tomorrow up", else 0
-    #    But the day i's returns come from day i+1's price move,
-    #    so we SHIFT positions by 1 day to reflect that you only
-    #    know today's prediction for tomorrow at the end of today.
+    # 8. Calculate daily P/L with SHIFTED positions and $10k capital
     # ------------------------------------------------------------
-    positions = pd.Series(y_pred, index=data.index)  # day-i prediction
-    price_changes = close_prices.diff().fillna(0)    # day-to-day price changes
-
-    # SHIFT positions by 1 day so you hold the position
-    # *during* the price change from day i to day i+1
+    # Model's raw signals: 1 if we predict "Up" tomorrow, else 0.
+    positions = pd.Series(y_pred, index=data.index)
+    # SHIFT by 1 to represent that we only know the signal at the end of day t-1
     positions_shifted = positions.shift(1, fill_value=0)
 
-    # Daily returns = positions (previous day's signal) * today's price change
-    daily_returns = positions_shifted * price_changes
+    # Daily price changes
+    daily_price_changes = close_prices.diff().fillna(0)
 
-    # Cumulative P&L
-    cumulative_pnl = np.cumsum(daily_returns)
-    metrics['total_pnl'] = cumulative_pnl.iloc[-1]
-    metrics['avg_daily_pnl'] = daily_returns.mean()
-    metrics['max_drawdown'] = (cumulative_pnl - np.maximum.accumulate(cumulative_pnl)).min()
+    # How many shares if we invest `capital` at the PREVIOUS day's close
+    # shares[today] = positions[t-1] * (capital / close[t-1])
+    # (we fill missing close[t-1] with something, or skip the first day)
+    prev_close = close_prices.shift(1)
+    shares_held = positions_shifted * (capital / prev_close)
+    shares_held = shares_held.fillna(0)
 
-    # ----------------------------------
-    # 8. Plot the cumulative P&L
-    # ----------------------------------
+    # daily_pnl = shares_held[today] * (close[today] - close[t-1])
+    daily_pnl = shares_held * daily_price_changes
+    cumulative_pnl = daily_pnl.cumsum()
+
+    total_pnl_value = 0.0
+    avg_daily_pnl = 0.0
+    max_drawdown = 0.0
+    if not cumulative_pnl.empty:
+        total_pnl_value = cumulative_pnl.iloc[-1]
+        avg_daily_pnl = daily_pnl.mean()
+        max_drawdown = (cumulative_pnl - np.maximum.accumulate(cumulative_pnl)).min()
+
+    # ------------------------------------------------------------
+    # 9. Compute Additional Performance Metrics: % Gain, Annualized Return
+    # ------------------------------------------------------------
+    # For *this ticker*, your "investment" is always `capital`.
+    # So percent_gain = (final_pnl / capital) * 100
+    percent_gain = (total_pnl_value / capital) * 100 if capital != 0 else 0
+
+    # Annualized percent gain (CAGR) over the date range
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date)
+    T_years = (end_dt - start_dt).days / 365.25
+    if T_years <= 0:
+        T_years = 1.0  # fallback to avoid division by zero
+
+    annualized_gain = 0.0
+    if percent_gain > -100:  # to avoid negative or zero base in CAGR
+        annualized_gain = ((1 + percent_gain / 100) ** (1 / T_years) - 1) * 100
+
+    print(f"Total P/L: ${total_pnl_value:.2f}")
+    print(f"Percent Gain: {percent_gain:.2f}%")
+    print(f"Annualized Percent Gain: {annualized_gain:.2f}%")
+
+    # ------------------------------------------------------------
+    # 10. Plot the cumulative P&L over time (optional)
+    # ------------------------------------------------------------
     plt.figure(figsize=(12, 6))
     plt.plot(cumulative_pnl, label='Cumulative P/L', color='green')
-    plt.title(f"Cumulative P/L for {ticker} Backtest (Shifted Target)")
+    plt.title(f"Cumulative P/L for {ticker} Backtest (Shifted Target, $10k)")
     plt.xlabel('Days')
     plt.ylabel('Profit/Loss ($)')
     plt.legend()
     plt.show()
+
+    # ---------------------------
+    # Return a dictionary of metrics + daily_pnl
+    # ---------------------------
+    metrics = {
+        'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'f1_score': f1,
+        'roc_auc': roc_auc,
+        'total_pnl': total_pnl_value,
+        'avg_daily_pnl': avg_daily_pnl,
+        'max_drawdown': max_drawdown,
+        'percent_gain': percent_gain,
+        'annualized_gain': annualized_gain,
+        'daily_pnl': daily_pnl  # so we can sum across tickers for a portfolio
+    }
 
     return metrics

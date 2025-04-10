@@ -11,9 +11,10 @@ from tensorflow.keras.models import load_model
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error, r2_score
 from lstm_model import Attention
 from data_processing import fetch_stock_data_alpha, preprocess_data_alpha, create_lstm_input
+from datetime import datetime
 
 
-def backtest_lstm(ticker, model_path, api_key, start_date='2022-01-01', end_date='2024-01-01'):
+def backtest_lstm(ticker, model_path, api_key, start_date='2024-01-01', end_date='2025-04-01'):
     # Fetch and preprocess data
     data = fetch_stock_data_alpha(ticker, api_key=api_key, start_date=start_date, end_date=end_date)
     data, scaler = preprocess_data_alpha(data)
@@ -81,56 +82,74 @@ def backtest_lstm_with_pl(ticker, model_path, api_key, start_date='2022-01-01', 
     y_actual = scaler.inverse_transform(y_test_padded)[:, 0]
     y_predicted = scaler.inverse_transform(y_pred_padded)[:, 0]
 
-    # Calculate metrics
+    # Calculate error metrics
     mae = mean_absolute_error(y_actual, y_predicted)
     rmse = np.sqrt(mean_squared_error(y_actual, y_predicted))
     mape = mean_absolute_percentage_error(y_actual, y_predicted)
     r2 = r2_score(y_actual, y_predicted)
 
-    # Initialize P/L tracking
+    # Initialize portfolio variables
     cash = initial_cash
-    position = 0  # Number of shares held
-    pl = []  # Track profit/loss over time
-    trades = []  # Track trades
+    position = 0  # number of shares held
+    pl = []       # list to track portfolio profit/loss over time
+    trades = []   # to record trade events
 
+    # Simple trading simulation
     for i in range(len(y_predicted) - 1):
         current_price = y_actual[i]
         next_price = y_actual[i + 1]
 
-        # Simple trading strategy: Buy if predicted price is higher, Sell if lower
-        if y_predicted[i + 1] > current_price:  # Predicts price will go up
-            if position == 0:  # If not holding, buy
-                position = cash // current_price  # Buy as many shares as possible
-                cash -= position * current_price
-                trades.append((i, 'Buy', current_price))
-        elif y_predicted[i + 1] < current_price:  # Predicts price will go down
-            if position > 0:  # If holding, sell
-                cash += position * current_price
-                position = 0  # Clear position
-                trades.append((i, 'Sell', current_price))
+        # Buy if prediction indicates a price increase and no current position
+        if y_predicted[i + 1] > current_price and position == 0:
+            position = cash // current_price  # buy as many shares as possible
+            cash -= position * current_price
+            trades.append((i, 'Buy', current_price))
+        # Sell if prediction indicates a drop and we hold shares
+        elif y_predicted[i + 1] < current_price and position > 0:
+            cash += position * current_price
+            position = 0
+            trades.append((i, 'Sell', current_price))
 
-        # Calculate portfolio value (cash + position value)
+        # Calculate portfolio value at next day (cash plus market value of position)
         portfolio_value = cash + position * next_price
         pl.append(portfolio_value - initial_cash)
 
-    # Final sell at the last price if holding a position
+    # Final sell at the end if holding a position
     if position > 0:
         cash += position * y_actual[-1]
         position = 0
         trades.append((len(y_actual) - 1, 'Sell', y_actual[-1]))
+        # Also update pl on the final day.
+        pl[-1] = cash - initial_cash
 
-    # Final P/L metrics
-    total_pl = cash - initial_cash
-    sharpe_ratio = np.mean(pl) / np.std(pl) if np.std(pl) > 0 else 0
-    max_drawdown = min(pl)
+    # Final portfolio metrics
+    total_pl = cash - initial_cash  # absolute profit/loss in dollars
+    overall_pct = ((cash / initial_cash) - 1) * 100  # overall percentage gain/loss
 
-    # Plot P/L over time
+    # Calculate the total duration in years for CAGR
+    start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+    end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+    n_years = (end_dt - start_dt).days / 365.25
+
+    if n_years > 0:
+        cagr = (cash / initial_cash) ** (1 / n_years) - 1
+        yearly_percent_gain = cagr * 100
+    else:
+        yearly_percent_gain = 0
+
+    # Compute Sharpe ratio (here computed on the daily P/L values)
+    pl_array = np.array(pl)
+    sharpe_ratio = np.mean(pl_array) / np.std(pl_array) if np.std(pl_array) > 0 else 0
+    max_drawdown = np.min(pl_array) if len(pl_array) > 0 else 0
+
+    # Plot the P/L over time
     plt.figure(figsize=(12, 6))
     plt.plot(pl, label='P/L Over Time', color='green')
-    plt.title(f'Profit/Loss (P/L) Over Time for {ticker}')
+    plt.title(f'Profit/Loss Over Time for {ticker}')
     plt.xlabel('Days')
-    plt.ylabel('P/L ($)')
+    plt.ylabel('Profit/Loss ($)')
     plt.legend()
     plt.show()
 
-    return mae, rmse, mape, r2, total_pl, sharpe_ratio, max_drawdown, trades
+    # Return error metrics, portfolio metrics, and daily P/L series
+    return (mae, rmse, mape, r2, total_pl, sharpe_ratio, max_drawdown, overall_pct, yearly_percent_gain, trades, pl)

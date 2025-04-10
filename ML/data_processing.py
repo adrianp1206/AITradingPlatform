@@ -383,3 +383,10 @@ def calculate_technical_indicators(df):
     return df
 
 
+if __name__ == "__name__":
+    tickers = ["AMZN", "TSLA"]
+    data = pd.DataFrame()
+    for ticker in tickers:
+        data[ticker] = fetch_stock_data_alpha(ticker, start_date= "2020-01-01", end_date="2025-05-01")
+    
+    print(data)
