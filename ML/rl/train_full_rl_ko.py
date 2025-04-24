@@ -5,17 +5,17 @@ import numpy as np
 from joblib import load
 from tensorflow.keras.models import load_model
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from data_processing import (
-    fetch_stock_data_alpha,
-    preprocess_data_alpha,
-    create_lstm_input,
-    calculate_technical_indicators
-)
-sys.path.append(os.path.join(os.path.dirname(__file__), '../lstm'))
-from lstm_model import Attention
-sys.path.append(os.path.join(os.path.dirname(__file__), '../nlp'))
-from run_nlp import generate_next_day_weighted_rolling_sentiments
+# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# from data_processing import (
+#     fetch_stock_data_alpha,
+#     preprocess_data_alpha,
+#     create_lstm_input,
+#     calculate_technical_indicators
+# )
+# sys.path.append(os.path.join(os.path.dirname(__file__), '../lstm'))
+# from lstm_model import Attention
+# sys.path.append(os.path.join(os.path.dirname(__file__), '../nlp'))
+# from run_nlp import generate_next_day_weighted_rolling_sentiments
 from trading_env_shares import StockTradingEnv, StockTradingEnvLongOnly
 from dqn_agent import DQNAgent
 from train_rl import train_dqn_agent
@@ -65,37 +65,37 @@ def train_rl_from_csv(input_csv, episodes=10, save_path_1=None, save_path_2=None
     
     df = pd.read_csv(input_csv)
 
-    env = StockTradingEnv(df, initial_balance=10000)
-    agent = DQNAgent(state_size=env.state_size, action_size=len(env.action_space))
-    train_dqn_agent(agent, env, episodes=episodes, save_path=save_path_1)
+    # env = StockTradingEnv(df, initial_balance=10000)
+    # agent = DQNAgent(state_size=env.state_size, action_size=len(env.action_space))
+    # train_dqn_agent(agent, env, episodes=episodes, save_path=save_path_1)
 
     env = StockTradingEnvLongOnly(df, initial_balance=10000)
     agent = DQNAgent(state_size=env.state_size, action_size=len(env.action_space))
     train_dqn_agent(agent, env, episodes=episodes, save_path=save_path_2)
 
-    if save_path_1 and os.path.exists(save_path_1):
-        print(f"📥 Downloading {save_path_1}")
-        files.download(save_path_1)
+    # if save_path_1 and os.path.exists(save_path_1):
+    #     print(f"📥 Downloading {save_path_1}")
+    #     files.download(save_path_1)
 
     if save_path_2 and os.path.exists(save_path_2):
         print(f"📥 Downloading {save_path_2}")
         files.download(save_path_2)
 
 if __name__ == "__main__":
-    build_rl_input_csv(
-        ticker="KO",
-        start_date="2021-05-01",
-        end_date="2024-04-01",
-        api_key="NL9PDOM5JWRPAT9O",
-        lstm_model_path="../models/lstm/lstm_KO_model.h5",
-        xgb_model_path="../models/boost/xgboost_KO.joblib",
-        xgb_features=['WCLPRICE', 'BB_lower', 'APO', 'MEDPRICE', 'HT_DCPERIOD', 'TYPPRICE', 'TRIMA', 'MACD_hist', 'T3', 'SMA', 'AVGPRICE', 'TRANGE', 'ADXR', 'HT_TRENDMODE', 'STOCH_fastk', 'STOCH_slowk', 'STOCH_slowd', 'TEMA', 'CMO', 'STOCH_fastd', 'HT_DCPHASE', 'AROON_DOWN', 'CCI', 'MFI', 'OBV', 'MACD_signal', 'MINUS_DI', 'HT_LEADSINE', 'HT_PHASOR_inphase', 'WMA'],
-        output_path="KO_RL_input.csv"
-    )
-
-    # train_rl_from_csv(
-    #     input_csv="KO_RL_input.csv",
-    #     episodes=5,
-    #     save_path_1="ko_dqn_model_both.h5",
-    #     save_path_2="ko_dqn_model_long.h5"
+    # build_rl_input_csv(
+    #     ticker="KO",
+    #     start_date="2021-05-01",
+    #     end_date="2024-04-01",
+    #     api_key="NL9PDOM5JWRPAT9O",
+    #     lstm_model_path="../models/lstm/lstm_KO_model.h5",
+    #     xgb_model_path="../models/boost/xgboost_KO_new.joblib",
+    #     xgb_features=['ADXR', 'HT_SINE', 'WCLPRICE', 'CMO', 'MFI', 'ATR', 'PLUS_DM', 'RSI', 'AVGPRICE', 'MINUS_DM', 'AROON_DOWN', 'APO', 'BB_lower', 'ADOSC', 'HT_DCPHASE', 'MACD', 'PLUS_DI', 'HT_PHASOR_quadrature', 'MACD_hist', 'TEMA', 'TYPPRICE', 'DEMA', 'MIDPRICE', 'TRANGE', 'NATR'],
+    #     output_path="KO_RL_input.csv"
     # )
+
+    train_rl_from_csv(
+        input_csv="KO_RL_input.csv",
+        episodes=5,
+        save_path_1="ko_dqn_model_both.h5",
+        save_path_2="ko_dqn_model_long.h5"
+    )
