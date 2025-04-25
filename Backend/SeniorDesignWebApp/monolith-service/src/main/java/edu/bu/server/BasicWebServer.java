@@ -17,6 +17,8 @@ public class BasicWebServer {
         HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
 
         server.createContext("/predictions", new CORSHandler(new PredictionHandler()));
+
+        server.createContext("/rl-performance", new CORSHandler(new RLPerformanceHandler()));
         // Start the server
         server.setExecutor(null); // Use the default executor
         server.start();

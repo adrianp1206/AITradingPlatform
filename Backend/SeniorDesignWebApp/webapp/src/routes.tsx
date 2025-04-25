@@ -26,14 +26,20 @@ export const routes: RouteObject[] = [
       element: <Predictions />,
       loader: async () => {
         try {
-          const response = await fetch(`${API_URL}/predictions`);
-          console.log("API response status:", response.status); // log status
-          const data = await response.json();
-          console.log("Data received from API:", data); // log data received
-          if (!response.ok) {
-            throw new Error("Failed fetching predictions");
+          const predictionsRes = await fetch(`${API_URL}/predictions`);
+          const rlPerformanceRes = await fetch(`${API_URL}/rl-performance`);
+    
+          if (!predictionsRes.ok || !rlPerformanceRes.ok) {
+            throw new Error("Failed fetching predictions or RL performance");
           }
-          return data.predictions;  
+    
+          const predictionsData = await predictionsRes.json();
+          const rlPerformanceData = await rlPerformanceRes.json();
+    
+          return {
+            predictions: predictionsData.predictions,
+            rlPerformance: rlPerformanceData.rl_performance, // matches backend response structure
+          };
         } catch (error) {
           throw new Error("Failed to load predictions.\n" + (error as Error).message);
         }
