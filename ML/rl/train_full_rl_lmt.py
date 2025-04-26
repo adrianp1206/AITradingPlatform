@@ -65,21 +65,21 @@ def train_rl_from_csv(input_csv, episodes=10, save_path_1=None, save_path_2=None
     
     df = pd.read_csv(input_csv)
 
-    env = StockTradingEnv(df, initial_balance=10000)
-    agent = DQNAgent(state_size=env.state_size, action_size=len(env.action_space))
-    train_dqn_agent(agent, env, episodes=episodes, save_path=save_path_1)
-
-    # env = StockTradingEnvLongOnly(df, initial_balance=10000)
+    # env = StockTradingEnv(df, initial_balance=10000)
     # agent = DQNAgent(state_size=env.state_size, action_size=len(env.action_space))
-    # train_dqn_agent(agent, env, episodes=episodes, save_path=save_path_2)
+    # train_dqn_agent(agent, env, episodes=episodes, save_path=save_path_1)
 
-    if save_path_1 and os.path.exists(save_path_1):
-        print(f"📥 Downloading {save_path_1}")
-        files.download(save_path_1)
+    env = StockTradingEnvLongOnly(df, initial_balance=10000)
+    agent = DQNAgent(state_size=env.state_size, action_size=len(env.action_space))
+    train_dqn_agent(agent, env, episodes=episodes, save_path=save_path_2)
 
-    # if save_path_2 and os.path.exists(save_path_2):
-    #     print(f"📥 Downloading {save_path_2}")
-    #     files.download(save_path_2)
+    # if save_path_1 and os.path.exists(save_path_1):
+    #     print(f"📥 Downloading {save_path_1}")
+    #     files.download(save_path_1)
+
+    if save_path_2 and os.path.exists(save_path_2):
+        print(f"📥 Downloading {save_path_2}")
+        files.download(save_path_2)
 
 if __name__ == "__main__":
     # build_rl_input_csv(
@@ -88,14 +88,14 @@ if __name__ == "__main__":
     #     end_date="2024-04-01",
     #     api_key="NL9PDOM5JWRPAT9O",
     #     lstm_model_path="../models/lstm/lstm_LMT_model.h5",
-    #     xgb_model_path="../models/boost/xgboost_LMT.joblib",
-    #     xgb_features=['NATR', 'STOCH_fastd', 'MOM', 'HT_PHASOR_quadrature', 'MFI', 'RSI', 'AROON_DOWN', 'STOCH_slowd', 'MACD_signal', 'TRANGE', 'DEMA', 'BB_middle', 'SMA', 'OBV', 'MIDPRICE', 'WMA', 'STOCH_fastk', 'BB_upper', 'ADOSC', 'AD', 'CCI', 'HT_DCPERIOD', 'ADX', 'STOCH_slowk', 'MINUS_DI', 'T3'],
+    #     xgb_model_path="../models/boost/xgboost_LMT_new.joblib",
+    #     xgb_features=['MFI', 'ADXR', 'STOCH_slowd', 'ATR', 'SMA', 'MACD_hist', 'AD', 'BB_lower', 'AVGPRICE', 'MACD_signal', 'MINUS_DM', 'HT_DCPERIOD', 'TRIMA', 'NATR', 'MINUS_DI', 'CCI'],
     #     output_path="LMT_RL_input.csv"
     # )
 
     train_rl_from_csv(
-        input_csv="KO_RL_input.csv",
+        input_csv="LMT_RL_input.csv",
         episodes=5,
-        save_path_1="ko_dqn_model_both.h5",
-        save_path_2="ko_dqn_model_long.h5"
+        save_path_1="lmt_dqn_model_both.h5",
+        save_path_2="lmt_dqn_model_long.h5"
     )
