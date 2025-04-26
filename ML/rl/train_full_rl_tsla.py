@@ -88,13 +88,8 @@ if __name__ == "__main__":
         end_date="2024-04-01",
         api_key="NL9PDOM5JWRPAT9O",
         lstm_model_path="../models/lstm/lstm_TSLA_model.h5",
-        xgb_model_path="../models/boost/xgboost_TSLA.joblib",
-        xgb_features=[
-        'WCLPRICE', 'AROON_UP', 'MIDPOINT', 'TYPPRICE', 'MACD', 'BB_upper', 'MACD_hist',
-        'T3', 'ADX', 'SMA', 'PLUS_DI', 'STOCH_fastk', 'MINUS_DM', 'TEMA', 'ATR',
-        'STOCH_fastd', 'AROON_DOWN', 'BB_middle', 'NATR', 'HT_LEADSINE', 'MFI', 'OBV',
-        'HT_PHASOR_inphase', 'STOCH_slowd'
-        ],
+        xgb_model_path="../models/boost/xgboost_TSLA_new.joblib",
+        xgb_features=['HT_DCPERIOD', 'WCLPRICE', 'TEMA', 'TRANGE', 'AROON_UP', 'AROONOSC', 'OBV', 'MINUS_DM'],
         output_path="TSLA_RL_input.csv"
     )
 

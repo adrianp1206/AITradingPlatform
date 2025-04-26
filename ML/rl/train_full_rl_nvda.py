@@ -5,17 +5,17 @@ import numpy as np
 from joblib import load
 from tensorflow.keras.models import load_model
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from data_processing import (
-    fetch_stock_data_alpha,
-    preprocess_data_alpha,
-    create_lstm_input,
-    calculate_technical_indicators
-)
-sys.path.append(os.path.join(os.path.dirname(__file__), '../lstm'))
-from lstm_model import Attention
-sys.path.append(os.path.join(os.path.dirname(__file__), '../nlp'))
-from run_nlp import generate_next_day_weighted_rolling_sentiments
+# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# from data_processing import (
+#     fetch_stock_data_alpha,
+#     preprocess_data_alpha,
+#     create_lstm_input,
+#     calculate_technical_indicators
+# )
+# sys.path.append(os.path.join(os.path.dirname(__file__), '../lstm'))
+# from lstm_model import Attention
+# sys.path.append(os.path.join(os.path.dirname(__file__), '../nlp'))
+# from run_nlp import generate_next_day_weighted_rolling_sentiments
 from trading_env_shares import StockTradingEnv, StockTradingEnvLongOnly
 from dqn_agent import DQNAgent
 from train_rl import train_dqn_agent
@@ -69,33 +69,33 @@ def train_rl_from_csv(input_csv, episodes=10, save_path_1=None, save_path_2=None
     agent = DQNAgent(state_size=env.state_size, action_size=len(env.action_space))
     train_dqn_agent(agent, env, episodes=episodes, save_path=save_path_1)
 
-    env = StockTradingEnvLongOnly(df, initial_balance=10000)
-    agent = DQNAgent(state_size=env.state_size, action_size=len(env.action_space))
-    train_dqn_agent(agent, env, episodes=episodes, save_path=save_path_2)
+    # env = StockTradingEnvLongOnly(df, initial_balance=10000)
+    # agent = DQNAgent(state_size=env.state_size, action_size=len(env.action_space))
+    # train_dqn_agent(agent, env, episodes=episodes, save_path=save_path_2)
 
     if save_path_1 and os.path.exists(save_path_1):
         print(f"📥 Downloading {save_path_1}")
         files.download(save_path_1)
 
-    if save_path_2 and os.path.exists(save_path_2):
-        print(f"📥 Downloading {save_path_2}")
-        files.download(save_path_2)
+    # if save_path_2 and os.path.exists(save_path_2):
+    #     print(f"📥 Downloading {save_path_2}")
+    #     files.download(save_path_2)
 
 if __name__ == "__main__":
-    build_rl_input_csv(
-        ticker="NVDA",
-        start_date="2021-05-01",
-        end_date="2024-04-01",
-        api_key="NL9PDOM5JWRPAT9O",
-        lstm_model_path="../models/lstm/lstm_NVDA_model.h5",
-        xgb_model_path="../models/boost/xgboost_NVDA.joblib",
-        xgb_features=['MEDPRICE', 'HT_DCPHASE', 'STOCH_fastd', 'AROON_UP', 'HT_SINE', 'APO', 'MINUS_DM', 'WCLPRICE', 'BB_upper', 'NATR', 'TYPPRICE', 'MIDPRICE', 'TRANGE', 'AROON_DOWN', 'DEMA', 'AVGPRICE', 'CMO', 'ROC', 'MIDPOINT', 'STOCH_slowk', 'TRIMA', 'T3', 'STOCH_slowd', 'CCI', 'MFI', 'OBV', 'STOCH_fastk'],
-        output_path="NVDA_RL_input.csv"
-    )
-
-    # train_rl_from_csv(
-    #     input_csv="KO_RL_input.csv",
-    #     episodes=5,
-    #     save_path_1="ko_dqn_model_both.h5",
-    #     save_path_2="ko_dqn_model_long.h5"
+    # build_rl_input_csv(
+    #     ticker="NVDA",
+    #     start_date="2021-05-01",
+    #     end_date="2024-04-01",
+    #     api_key="NL9PDOM5JWRPAT9O",
+    #     lstm_model_path="../models/lstm/lstm_NVDA_model.h5",
+    #     xgb_model_path="../models/boost/xgboost_NVDA_new.joblib",
+    #     xgb_features=['AD', 'BB_middle', 'HT_PHASOR_quadrature', 'HT_DCPERIOD', 'STOCH_fastk', 'APO', 'STOCH_slowd', 'CMO', 'WCLPRICE', 'MACD', 'AROONOSC', 'MOM', 'HT_LEADSINE', 'T3', 'SMA', 'ATR', 'HT_PHASOR_inphase'],
+    #     output_path="NVDA_RL_input.csv"
     # )
+
+    train_rl_from_csv(
+        input_csv="KO_RL_input.csv",
+        episodes=5,
+        save_path_1="ko_dqn_model_both.h5",
+        save_path_2="ko_dqn_model_long.h5"
+    )
