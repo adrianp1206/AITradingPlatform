@@ -13,6 +13,15 @@
 - **scheduler.py**: example scheduler (cron or Python).
 - **lstm/, boost/, nlp/, rl/**: training notebooks + serialized model artifacts.
 
+**Backtest Results**
+
+All backtests are stored as Jupyter notebooks in `ML/`:
+
+- `lstm_backtest_results.ipynb`
+- `xgboost_backtest_results.ipynb`
+- `nlp_backtest_results.ipynb`
+- `rl_backtest_results.ipynb`
+
 ### SeniorDesignWebApp/
 - **monolith-service/**: Java REST API:
   - `/subscribe`, `/unsubscribe`
