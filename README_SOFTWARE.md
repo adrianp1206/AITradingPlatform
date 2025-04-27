@@ -24,9 +24,8 @@ All backtests are stored as Jupyter notebooks in `ML/`:
 
 ### SeniorDesignWebApp/
 - **monolith-service/**: Java REST API:
-  - `/subscribe`, `/unsubscribe`
-  - `/price/{symbol}`
-  - `/mostactive`
+  - `/rl-performance`
+  - `/predictions`
 - **webapp/**: React (Vite) front-end consuming backend APIs.
 - **serviceTest.sh**: integration tests with mock FinHub client.
 
@@ -81,7 +80,7 @@ All backtests are stored as Jupyter notebooks in `ML/`:
    ```  
 5. **Run**:
    - **ML backfill**: `cd ML && python backfill_script.py`
-   - **Java service**: `cd SeniorDesignWebApp && ./gradlew runServer`
+   - **Java service**: `cd SeniorDesignWebApp && gradle runService`
    - **Front-end**: `cd SeniorDesignWebApp/webapp && npm install && npm run dev`
 
 ---
