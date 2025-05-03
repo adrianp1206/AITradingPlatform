@@ -1,0 +1,1 @@
+{"root":["./src/about.tsx","./src/home.tsx","./src/predictions.tsx","./src/price.tsx","./src/routing.tsx","./src/stockapp.tsx","./src/constants.ts","./src/main.tsx","./src/routes.tsx","./src/vite-env.d.ts","./src/mocks/browser.ts","./src/mocks/enable.ts","./src/mocks/handlers.ts"],"version":"5.6.3"}
